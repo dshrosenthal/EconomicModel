@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Minimal Long-Term Storage Economic Model</title>
+  <style>
+    body {
+      margin: 0 0 50px 0;
+      background: #eee;
+    }
+    h1 {
+      background: #111;
+      color: #eee;
+      padding: 10px 0;
+      margin: 0 auto;
+      text-align: center;
+      font-family: sans-serif;
+    }
+    form {
+      max-width: fit-content;
+      margin: 0 auto;
+    }
+    input {
+      text-align: right;
+    }
+    #form-container {
+      background: #ccc;
+      padding: 5px;
+      font-family: monospace;
+    }
+    #result-container {
+      background: #eee;
+      padding: 20px;
+      font-family: monospace;
+      text-align: center;
+      font-size: 50px;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+      padding: 2px;
+      margin: 5px auto 30px;
+    }
+    .narrow-input {
+      width: 100px;
+    }
+    fieldset {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      width: fit-content;
+      gap: 2px 1em;
+      margin: 10px auto;
+    }
+    input:invalid {
+      outline: 1px solid red;
+    }
+    form p {
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      background: #111;
+      color: #eee;
+      font-family: sans-serif;
+      padding: 5px 0;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+    }
+    footer a {
+      text-decoration: none;
+      color: #eee;
+    }
+    #about {
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: justify;
+    }
+  </style>
+  <script>
+    const c = new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'});
+
+    function calculate(params) {
+      let {
+        DriveCost,
+        SlotCost,
+        SlotTeraByte,
+        SlotCostPerYear,
+        DriveLife,
+        DriveFailRate,
+        SlotLife,
+        DiscountRate,
+        KryderRate,
+        SlotRate,
+        LaborPowerRate,
+        ReplicationFactor,
+        Storage,
+        Duration
+      } = params;
+
+      const YearlyCost = [];
+      let Year = 0;
+      let DiscountFactor = 1.0;
+      while (Year < Duration) {
+        let Cost = (SlotCostPerYear / SlotTeraByte);
+        if ((Year % DriveLife) == 0) {
+          let SpareFactor = DriveFailRate / 100 * DriveLife;
+          Cost += (DriveCost * (1 + SpareFactor) / SlotTeraByte);
+        }
+        if ((Year % SlotLife) == 0) {
+          Cost += (SlotCost / SlotTeraByte)
+        }
+        Cost *= DiscountFactor;
+        Cost *= ReplicationFactor;
+        YearlyCost.push(Cost * Storage)
+        SlotTeraByte *= (1.0 + (KryderRate / 100));
+        SlotCost *= (1.0 - (SlotRate / 100));
+        SlotCostPerYear *= (1.0 + (LaborPowerRate / 100));
+        DiscountFactor *= (1.0 - (DiscountRate / 100));
+        Year++;
+      }
+      return YearlyCost;
+    }
+
+    function result(f) {
+      let msg = 'ERROR!';
+      if (f.checkValidity()) {
+        const params = Object.fromEntries(new FormData(f));
+        const YearlyCost = calculate(params);
+        const kl = Math.max(...(Object.keys(params).map(el => el.length)));
+        const vl = Math.max(...(Object.values(params).map(el => el.length)));
+        const legends = [`Parameters ${' '.repeat((kl + vl) / 2 - 5)}`].concat(Object.entries(params).filter(([k, v]) => !['Storage', 'Duration'].includes(k)).map(([k, v]) => `${k}${' '.repeat(kl - k.length)} = ${' '.repeat(vl - v.length)}${v}`));
+        plot(YearlyCost, `Endowment for Preserving ${params.Storage}TB for ${params.Duration} Years`, legends);
+        msg = c.format(YearlyCost.reduce((a, b) => a + b));
+      }
+      document.getElementById('result-container').innerText = msg;
+    }
+
+    function plot(data, title='', legends=[]) {
+      data = data.map((sum = 0, n => sum += n));
+      const total = data[data.length - 1];
+      const cnvs = document.getElementById('plot');
+      const WIDTH = cnvs.width;
+      const HEIGHT = cnvs.height;
+      const LPAD = 20;
+      const RPAD = 10;
+      const BPAD = 20;
+      const TPAD = 30;
+      const LINEH = 12;
+      const x = v => ((WIDTH - LPAD - RPAD) / data.length * v) + LPAD;
+      const y = v => HEIGHT - ((HEIGHT - BPAD - TPAD) / total * v) - BPAD;
+      const ctx = cnvs.getContext('2d');
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'gray';
+      ctx.fillStyle = 'black';
+      ctx.beginPath();
+      ctx.moveTo(LPAD, TPAD);
+      ctx.lineTo(LPAD, HEIGHT - BPAD);
+      ctx.lineTo(WIDTH - RPAD, HEIGHT - BPAD);
+      ctx.stroke();
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(title, WIDTH / 2, TPAD / 2);
+      ctx.save();
+      ctx.translate(LPAD / 1.4, HEIGHT - ((HEIGHT - BPAD - TPAD) / 2) - BPAD);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillText('Endowment (USD)', 0, 0);
+      ctx.restore();
+      ctx.fillText('0', LPAD, HEIGHT - (BPAD / 3));
+      ctx.fillText('Year', LPAD + (WIDTH - LPAD - RPAD) / 2, HEIGHT - (BPAD / 3));
+      ctx.textAlign = 'right';
+      ctx.fillText(data.length, WIDTH - RPAD, HEIGHT - (BPAD / 3));
+      ctx.fillStyle = 'gray';
+      legends.reverse().forEach((v, i) => ctx.fillText(v, WIDTH - RPAD, HEIGHT - BPAD - 10 - i * LINEH));
+      ctx.beginPath();
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#2c7bb6';
+      ctx.moveTo(LPAD, HEIGHT - BPAD);
+      data.forEach((e, i) => ctx.lineTo(x(i + 1), y(e)));
+      ctx.stroke();
+      ctx.strokeStyle = '#d7191c';
+      ctx.fillStyle = '#d7191c';
+      ctx.font = '30px monospace';
+      ctx.fillText(c.format(total), WIDTH - RPAD, TPAD + 30);
+      ctx.beginPath();
+      ctx.arc(WIDTH - RPAD, TPAD, 3, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.fill();
+      cnvs.title = `${title} ≈ ${c.format(total)}`;
+    }
+
+    window.onload = () => {
+      const f = document.getElementById('params');
+      (new URLSearchParams(location.search)).forEach((v, k) => {
+        if (v && f.elements[k]) {
+          f[k].value = v;
+        }
+      });
+      result(f);
+      f.onchange = e => {
+        const url = new URL(location);
+        url.searchParams.set(e.target.name, e.target.value);
+        history.replaceState(null, '', url);
+        result(f);
+      };
+    };
+  </script>
+</head>
+<body>
+  <h1>Minimal Long-Term Storage Economic Model</h1>
+  <div id="form-container">
+    <form id="params">
+      <fieldset>
+        <legend>Parameters</legend>
+        <label for="DriveCost" title="Cost per drive (assumed constant, capacity increases)">DriveCost ($):</label>
+        <input id="DriveCost" name="DriveCost" type="number" value="250.00" step="0.01" min="0.01" required>
+        <label for="SlotTeraByte" title="Disk capacity in TB">SlotTeraByte:</label>
+        <input id="SlotTeraByte" name="SlotTeraByte" type="number" value="7.2" step="0.01" min="0.01" required>
+        <label for="KryderRate" title="Disk capacity increment per year">KryderRate (%):</label>
+        <input id="KryderRate" name="KryderRate" type="number" value="10.00" step="0.01" min="0.01" required>
+        <label for="DriveLife" title="Service life of drive in years">DriveLife (yr):</label>
+        <input id="DriveLife" name="DriveLife" type="number" value="4" min="1" required>
+        <label for="DriveFailRate" title="Annual proportion of drives that fail">DriveFailRate (%/yr):</label>
+        <input id="DriveFailRate" name="DriveFailRate" type="number" value="2.00" step="0.01" min="0.01" required>
+        <label for="SlotCost" title="Per-slot cost of rack/server/etc">SlotCost ($):</label>
+        <input id="SlotCost" name="SlotCost" type="number" value="150.00" step="0.01" min="0.01" required>
+        <label for="SlotRate" title="Rack + server cost decrease per year">SlotRate (%):</label>
+        <input id="SlotRate" name="SlotRate" type="number" value="0.00" step="0.01" min="0.00" required>
+        <label for="SlotLife" title="Service life of rack in years">SlotLife (yr):</label>
+        <input id="SlotLife" name="SlotLife" type="number" value="8" min="1" required>
+        <label for="SlotCostPerYear" title="Annual labor + power cost of a drive slot">SlotCostPerYear ($):</label>
+        <input id="SlotCostPerYear" name="SlotCostPerYear" type="number" value="100.00" step="0.01" min="0.01" required>
+        <label for="LaborPowerRate" title="Labor + power cost increment per year">LaborPowerRate (%):</label>
+        <input id="LaborPowerRate" name="LaborPowerRate" type="number" value="4.00" step="0.01" min="0" required>
+        <label for="ReplicationFactor" title="Replication factor">ReplicationFactor:</label>
+        <input id="ReplicationFactor" name="ReplicationFactor" type="number" value="2.00" step="0.01" min="0" required>
+        <label for="DiscountRate" title="Real interest rate per year">DiscountRate (%):</label>
+        <input id="DiscountRate" name="DiscountRate" type="number" value="2.00" step="0.01" min="0" required>
+      </fieldset>
+      <p>
+        <input id="Storage" name="Storage" type="number" value="1" min="1" class="narrow-input" required>TB for
+        <input id="Duration" name="Duration" type="number" value="100" min="1" class="narrow-input" required>Years
+      </p>
+    </form>
+  </div>
+  <div id="result-container"></div>
+  <canvas id="plot" width="500" height="300"></canvas>
+  <hr>
+  <div id="about">
+    <h2>Description</h2>
+    <p>
+      A minimal model of the endowment needed to store one terabyte on disk <em>forever</em> under a set of assumptions which can be adjusted.
+      It is an initial, greatly simplified version of earlier work by the <a href="https://www.lockss.org/">LOCKSS Program</a> and students at the Storage Systems Research Center of UC Santa Cruz.
+      This work was published <a href="http://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">here in 2012</a> and in later papers (see <a href="https://www.lockss.org/news-media/publications/">here</a>).
+    </p>
+    <p>
+      The endowment is the money which, deposited with the data and invested at interest, suffices to pay for the storage of (in this case) a terabyte "forever", which in this model is 100 years.
+    </p>
+    <h2>Parameters</h2>
+    <p>This model's parameters are as follows.</p>
+    <h3>Media Cost Factors</h3>
+    <dl>
+      <dt>DriveCost</dt>
+      <dd>The initial cost per drive, assumed constant in real dollars.</dd>
+      <dt>DriveTeraByte</dt>
+      <dd>The initial number of TB of useful data per drive (i.e. excluding overhead).</dd>
+      <dt>KryderRate</dt>
+      <dd>The annual percentage by which DriveTeraByte increases.</dd>
+      <dt>DriveLife</dt>
+      <dd>Working drives are replaced after this many years.</dd>
+      <dt>DriveFailRate</dt>
+      <dd>Percentage of drives that fail each year.</dd>
+    </dl>
+    <h3>Infrastructure Cost factors</h3>
+    <dl>
+      <dt>SlotCost</dt>
+      <dd>The initial non-media cost of a rack (servers, networking, etc) divided by the number of drive slots.</dd>
+      <dt>SlotRate</dt>
+      <dd>The annual percentage by which SlotCost decreases in real terms.</dd>
+      <dt>SlotLife</dt>
+      <dd>Racks are replaced after this many years</dd>
+    </dl>
+    <h3>Running Cost Factors</h3>
+    <dl>
+      <dt>SlotCostPerYear</dt>
+      <dd>The initial running cost per year (labor, power, etc) divided by the number of drive slots.</dd>
+      <dt>LaborPowerRate</dt>
+      <dd>The annual percentage by which SlotCostPerYear increases in real terms.</dd>
+      <dt>ReplicationFactor</dt>
+      <dd>The number of copies. This need not be an integer, to account for erasure coding.</dd>
+    </dl>
+    <h3>Financial Factors</h3>
+    <dl>
+      <dt>DiscountRate</dt>
+      <dd>The annual real interest obtained by investing the remaining endowment.</dd>
+    </dl>
+    <h2>Assumptions</h2>
+    <ul>
+      <li>Unlike <a href="http://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">earlier published research</a>, this model ignores the cost of ingesting the data in the first place, and acessing it later. Experience suggests the following rule of thumb: ingest is half the total lifetime cost, storage is one-third the total lifetime cost, and access is one-sixth. Thus a reasonable estimate of the total preservation cost of a terabyte is three times the result of this model.</li>
+      <li>The model assumes that the parameters are constant through time. Historically, interest rates, the Kryder rate, labor costs, etc. have varied, and thus should be modelled using Monte Carlo techniques and a probability distribution for each such parameter. It is possible for real interest rates to go negative, disk cost per terabyte to spike upwards, as it did after the Thai floods, and so on. These low-probability events can have a large effect on the endowment needed, but are excluded from this model.</li>
+      <li>There are a number of different possible policies for handling the inevitable disk failures, and different ways to model each of them. This model assumes that it is possible to predict at the time a batch of disks is purchased what proportion of them will fail, and inflates the purchase cost by that factor. This models the policy of buying extra drives so that failures can be replaced by the same drive model.</li>
+      <li>The model assumes that drives are replaced after DriveLife years even though they are working. Continuing to use the drives beyond this can have significant effects on the endowment, see <a href="http://storageconference.us/2016/Papers/EffectsOfMediaUsage.pdf">this paper</a>.</li>
+    </ul>
+  </div>
+  <footer>A JavaScript reimplementation of the original <a href="https://github.com/dshrosenthal/EconomicModel/blob/master/cgi-bin/one-endowment.py">EconomicModel</a>.</footer>
+</body>
+</html>
