@@ -23,6 +23,9 @@
     input {
       text-align: right;
     }
+    label {
+      padding-top: 4px;
+    }
     #form-container {
       background: #ccc;
       padding: 5px;
@@ -255,7 +258,7 @@
     <p>
       A minimal model of the endowment needed to store one terabyte on disk <em>forever</em> under a set of assumptions which can be adjusted.
       It is an initial, greatly simplified version of earlier work by the <a href="https://www.lockss.org/">LOCKSS Program</a> and students at the Storage Systems Research Center of UC Santa Cruz.
-      This work was published <a href="http://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">here in 2012</a> and in later papers (see <a href="https://www.lockss.org/news-media/publications/">here</a>).
+      This work was published <a href="https://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">here in 2012</a> and in later papers (see <a href="https://www.lockss.org/news-media/publications/">here</a>).
     </p>
     <p>
       The endowment is the money which, deposited with the data and invested at interest, suffices to pay for the storage of (in this case) a terabyte "forever", which in this model is 100 years.
@@ -300,12 +303,12 @@
     </dl>
     <h2>Assumptions</h2>
     <ul>
-      <li>Unlike <a href="http://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">earlier published research</a>, this model ignores the cost of ingesting the data in the first place, and accessing it later. Experience suggests the following rule of thumb: ingest is half the total lifetime cost, storage is one-third the total lifetime cost, and access is one-sixth. Thus a reasonable estimate of the total preservation cost of a terabyte is three times the result of this model.</li>
+      <li>Unlike <a href="https://www.lockss.org/locksswp/wp-content/uploads/2012/09/unesco2012.pdf">earlier published research</a>, this model ignores the cost of ingesting the data in the first place, and accessing it later. Experience suggests the following rule of thumb: ingest is half the total lifetime cost, storage is one-third the total lifetime cost, and access is one-sixth. Thus a reasonable estimate of the total preservation cost of a terabyte is three times the result of this model.</li>
       <li>The model assumes that the parameters are constant through time. Historically, interest rates, the Kryder rate, labor costs, etc. have varied, and thus should be modelled using Monte Carlo techniques and a probability distribution for each such parameter. It is possible for real interest rates to go negative, disk cost per terabyte to spike upwards, as it did after the Thai floods, and so on. These low-probability events can have a large effect on the endowment needed, but are excluded from this model.</li>
       <li>There are a number of different possible policies for handling the inevitable disk failures, and different ways to model each of them. This model assumes that it is possible to predict at the time a batch of disks is purchased what proportion of them will fail, and inflates the purchase cost by that factor. This models the policy of buying extra drives so that failures can be replaced by the same drive model.</li>
       <li>The model assumes that drives are replaced after DriveLife years even though they are working. Continuing to use the drives beyond this can have significant effects on the endowment, see <a href="http://storageconference.us/2016/Papers/EffectsOfMediaUsage.pdf">this paper</a>.</li>
     </ul>
   </div>
-  <footer>A JavaScript reimplementation of the original <a href="https://github.com/dshrosenthal/EconomicModel/blob/master/cgi-bin/one-endowment.py">EconomicModel</a>.</footer>
+  <footer>A <a href="https://github.com/internetarchive/EconomicModel/blob/master/index.html">JavaScript reimplementation</a> of the original <a href="https://github.com/dshrosenthal/EconomicModel/blob/master/cgi-bin/one-endowment.py">EconomicModel</a>.</footer>
 </body>
 </html>
